@@ -1,0 +1,84 @@
+#Create virtual machines with the Azure CLI
+
+Install CLI locally, resources can be found here
+https://docs.microsoft.com/en-us/cli/azure/install-azure-cli?view=azure-cli-latest
+
+#Sign in
+
+az login
+
+#{Complete the authentication process by following the steps displayed in your terminal.}
+
+#Create a Resource group:
+
+#In Azure, all resources are allocated in a resource management group. 
+#Resource groups provide logical groupings of resources that make them easier to work with as a collection.
+#For this tutorial, all of the created resources go into a single group named TutorialRG
+
+az group create --name TutorialRG --location westus
+
+
+#Create a Virtual Machine:
+#Virtual machines in Azure have a large number of dependencies.
+#The CLI creates these resources for you based on the command-line arguments you specify.
+#Create a new virtual machine running Ubuntu, which uses SSH authentication for login.
+
+az vm create --resource-group TutorialRG --name TutorialVM1 --image UbuntuLTS --generate-ssh-keys --output json  --verbose
+
+#NOTE: if you have a SSH key named id_rsa already available, this key is used for authentication rather than having a  new key generated
+#As the VM is created, you see the local values used and Azure resources being created due to the --verbose option. 
+#Once the VM is ready, JSON is returned from the Azure service including the public IP address.
+
+{
+  "fqdns": "",
+  "id": "...",
+  "location": "westus",
+  "macAddress": "...",
+  "powerState": "VM running",
+  "privateIpAddress": "...",
+  "publicIpAddress": <PUBLIC_IP_ADDRESS>,
+  "resourceGroup": "TutorialRG",
+  "zones": ""
+}
+
+ssh <PUBLIC_IP_ADDRESS>
+
+The next section we see how to get detailed info on the VM and how to filter it.
+
+#Get VM information with queries
+#Now that a VM has been created, detailed information about it can be retrieved.
+#The common command for getting information from a resource is "show".
+
+az vm show --name TutorialVM1 --resource-group TutorialRG
+
+#You'll see a lot of information, which can be difficult to parse visually.
+#The returned JSON contains information on authentication, network interfaces, storage, and more.
+#Most importantly, it contains the Azure object IDs for resources that the VM is connected to.
+#Object IDs allow accessing these resources directly to get more information about the VM's configuration and capabilities.
+#In order to extract the object ID we want, the "--query" argument is used. 
+#Queries are written in the JMESPath query language. 
+#Start with getting the network interface controller (NIC) object ID.
+
+
+az vm show --name TutorialVM1 --resource-group TutorialRG --query 'networkProfile.networkInterfaces[].id' --output tsv
+
+ # "networkProfile" is a key of the top-level JSON, which has networkInterfaces as a subkey.
+ # If a JSON value is a dictionary, its keys are referenced from the parent key with the " . " operator.
+ # "networkInterfaces" value is an array, so it is flattened with the "[]" operator.
+ # This operator runs the remainder of the query on each array element. 
+ # In this case, it gets the "id" value of every array element.
+
+#The output format "tsv" (tab-separated values) is guaranteed to only include the result data and whitespace consisting of tabs and newlines.
+#Since the returned value is a single bare string, it's safe to assign directly to an environment variable.
+#Go ahead and assign the NIC object ID to an environment variable now.
+
+NIC_ID=$(az vm show -n TutorialVM1 -g TutorialResources --query 'networkProfile.networkInterfaces[].id' -o tsv)
+
+#This also demonstrates the use of short arguments. 
+#You may use -g instead of --resource-group, 
+#            -n instead of --name, and
+#            -o instead of --output.
+
+#Set environment variables from CLI output
+https://docs.microsoft.com/en-us/cli/azure/azure-cli-vm-tutorial?tutorial-step=5&view=azure-cli-latest
+
